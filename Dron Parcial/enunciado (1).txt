@@ -1,0 +1,542 @@
+================================================================================
+EXAMEN PARCIAL: PERSISTENCIA Y ALGORITMIA AVANZADA EN .NET
+================================================================================
+
+Temática: Simulador de Trayectoria de un Dron Automatizado con ADO.NET y PostgreSQL
+Duración: 3 horas.
+Modalidad: Práctico individual - Remoto.
+
+--------------------------------------------------------------------------------
+1. EXPLICACIÓN DEL PROBLEMA: ESCANEO DEL TERRENO ALCANZABLE
+--------------------------------------------------------------------------------
+
+El objetivo de este ejercicio es programar el sistema de navegación de un Dron
+de Inspección. El dron opera dentro de un terreno cuadrado dividido en parcelas
+de tamaño variable (N x N). Para cumplir su directiva, el dron debe despegar
+desde una parcela inicial y recorrer todas las parcelas que pueda ALCANZAR con
+su patrón de movimiento, pisando cada una exactamente una vez (ver la condición
+de éxito más abajo para el detalle de qué parcelas cuentan como alcanzables).
+
+Convención de coordenadas: en todo este enunciado X = FILA e Y = COLUMNA, ambas
+en el rango [0, N-1]. Por ejemplo, la coordenada (5,3) es la fila 5, columna 3.
+
+Reglas de navegación del dron:
+
+* EL PATRÓN DE VUELO: El dron se desplaza con un movimiento fijo en forma de
+  "L". En cada salto, debe avanzar exactamente 2 parcelas en línea recta (ya sea
+  horizontal o vertical) y luego exactamente 1 parcela en perpendicular a esa
+  dirección. Desde una posición central interna, el dron tiene hasta 8 posibles
+  destinos de salto.
+
+  Ejemplo de los 8 destinos desde una parcela central D = (fila 3, columna 3) en
+  un terreno de 7x7. Los asteriscos (*) marcan las parcelas alcanzables en un
+  único salto:
+
+        col: 0  1  2  3  4  5  6
+            -----------------------
+       f0 |  .  .  .  .  .  .  .
+       f1 |  .  .  *  .  *  .  .
+       f2 |  .  *  .  .  .  *  .
+       f3 |  .  .  .  D  .  .  .
+       f4 |  .  *  .  .  .  *  .
+       f5 |  .  .  *  .  *  .  .
+       f6 |  .  .  .  .  .  .  .
+
+  Esos 8 destinos se obtienen combinando el avance recto (2) con el perpendicular (1).
+  Partiendo de D = (fila 3, columna 3), cada salto es:
+
+     Avance recto VERTICAL (2 filas) + 1 columna perpendicular:
+       1) 2 arriba   + 1 a la izquierda  -> (1, 2)
+       2) 2 arriba   + 1 a la derecha    -> (1, 4)
+       3) 2 abajo    + 1 a la izquierda  -> (5, 2)
+       4) 2 abajo    + 1 a la derecha    -> (5, 4)
+
+     Avance recto HORIZONTAL (2 columnas) + 1 fila perpendicular:
+       5) 1 arriba   + 2 a la izquierda  -> (2, 1)
+       6) 1 arriba   + 2 a la derecha    -> (2, 5)
+       7) 1 abajo    + 2 a la izquierda  -> (4, 1)
+       8) 1 abajo    + 2 a la derecha    -> (4, 5)
+
+  Si el dron estuviera sobre un borde o una esquina, algunos de esos 8 destinos
+  caerían fuera del terreno y no estarían disponibles (de ahí el "hasta 8").
+
+* RESTRICCIÓN DE BATERÍA: El dron no puede volver a pisar una parcela que ya
+  visitó en la misma simulación. Las parcelas ya pisadas quedan bloqueadas.
+
+* ESTRATEGIA DE EXPLORACIÓN RECURSIVA: El algoritmo debe avanzar paso a paso de
+  forma recursiva. Si el dron se mete en un callejón sin salida (quedan parcelas
+  libres pero ninguna es alcanzable con su patrón de movimiento), el programa
+  debe deshacer el último paso intentado (Backtracking), marcar esa parcela
+  nuevamente como "no visitada" y evaluar la siguiente alternativa disponible.
+
+* CONDICIÓN DE ÉXITO: La simulación es exitosa cuando el dron recorre TODAS las
+  parcelas ALCANZABLES desde su posición de despegue, cada una exactamente una
+  vez. Se entiende por "alcanzables" todas las parcelas a las que el dron puede
+  llegar encadenando saltos válidos de su patrón de movimiento (la "isla"
+  conectada que parte del despegue). Si esa isla tiene M parcelas, el recorrido
+  es exitoso al registrar el movimiento número M - 1 (contando desde el paso
+  inicial 0). En terrenos amplios la isla abarca todo el mapa (M = N x N) y el
+  dron cubre el terreno completo; en terrenos chicos pueden quedar parcelas que
+  el patrón nunca puede pisar, y esas se excluyen del objetivo.
+
+--------------------------------------------------------------------------------
+2. REQUERIMIENTOS TÉCNICOS OBLIGATORIOS
+--------------------------------------------------------------------------------
+
+1. TIPO DE PROYECTO: Aplicación de Consola (.NET 8 o superior).
+
+2. ACCESO A DATOS (ADO.NET SÍNCRONO): Uso exclusivo del driver oficial de
+   PostgreSQL: "Npgsql". Se deberán gestionar manualmente las conexiones
+   (NpgsqlConnection), comandos (NpgsqlCommand) y parámetros utilizando los
+   métodos bloqueantes estándar del proveedor. Queda terminantemente prohibido
+   el uso de ORMs (EF Core, Dapper, etc.) y de modificadores "async/await".
+
+3. CONFIGURACIÓN EXTERNA (PARAMETRIZACIÓN): Queda estrictamente prohibido
+   escribir la cadena de conexión de la base de datos fija (hardcodeada) en el
+   código C#. Se debe implementar de forma obligatoria el uso de un archivo
+   "appsettings.json" junto con los paquetes de configuración de .NET
+   (Microsoft.Extensions.Configuration y Microsoft.Extensions.Configuration.Json)
+   para leer las credenciales del motor de manera dinámica.
+
+4. RESTRICCIÓN DE SINTAXIS EN PERSISTENCIA: Para evaluar el control de flujos
+   lógicos tradicionales, queda prohibido el uso de bucles "for" o "foreach"
+   para recorrer e insertar la secuencia de movimientos en la base de datos.
+   Se debe utilizar una estructura de control alternativa ("while" o "do-while"),
+   donde el avance por la secuencia lo controla el programador con una variable
+   contador (índice) que él mismo inicializa y va incrementando en cada vuelta,
+   en lugar de dejar que el bucle gestione el recorrido automáticamente.
+   Por ejemplo:
+       int i = 0;                       // el índice arranca en 0
+       while (i < cantidadMovimientos)  // la condición se evalúa a mano
+       {
+           InsertarMovimiento(secuencia[i]);
+           i++;                         // se avanza el índice manualmente
+       }
+
+5. VALIDACIÓN DINÁMICA: El tamaño del terreno (N) y las coordenadas de inicio
+   deben ser validados en tiempo de ejecución antes de iniciar la recursión.
+   N debe ser un entero >= 1, y cada coordenada de despegue debe caer en el
+   rango [0, N-1]. Nota: que las coordenadas sean válidas no garantiza que exista
+   recorrido; hay tamaños (p. ej. N = 4) en los que el dron alcanza todas las
+   parcelas pero no existe ruta que las cubra sin repetir, y el programa debe
+   informarlo como "sin solución" (no es un error).
+
+--------------------------------------------------------------------------------
+3. CONSIGNAS A DESARROLLAR
+--------------------------------------------------------------------------------
+
+PARTE A: DISEÑO E INTERPRETACIÓN DE LA BASE DE DATOS (15%)
+El alumno deberá interpretar el siguiente requerimiento funcional y traducirlo
+a un diseño relacional físico en PostgreSQL (creando los scripts DDL
+correspondientes). El sistema requiere modelar una relación Uno a Muchos entre:
+
+1. tb_master_control: Almacena la cabecera de cada ejecución exitosa. Debe
+   contener un identificador único autonumérico entero (PK), una marca de tiempo
+   con la fecha del sistema, el tamaño del terreno N, y las coordenadas X e Y
+   de despegue.
+2. tb_det_log: Almacena el rastro de la secuencia calculada de forma atómica.
+   Debe poseer su propio ID autonumérico entero (PK), un campo entero que actúe
+   como Llave Foránea (FK) vinculada estrictamente a la estructura principal, un
+   campo entero para la etiqueta del paso actual (ver regla de la Parte D), y
+   dos campos enteros para registrar las coordenadas X e Y de la parcela pisada.
+
+PARTE B: ALGORITMO DE VUELO RECURSIVO (40%)
+Implementa la lógica de resolución en una clase independiente:
+* El método recursivo no debe usar constantes para el tamaño del terreno; debe
+  recibir y adaptarse al tamaño N ingresado por el usuario.
+* Debe rellenar la matriz dinámica de forma recursiva aplicando estrictamente
+  el patrón de desplazamiento 2x1 especificado y evaluando los caminos
+  alternativos cuando una ruta falle.
+* ORDEN DE EXPLORACIÓN OBLIGATORIO (heurística de menor grado): en cada paso, los
+  destinos candidatos NO se prueban en un orden fijo, sino ordenados por su
+  "grado" ascendente, es decir, probando primero el destino que deja MENOS
+  salidas libres disponibles. Esta heurística es OBLIGATORIA en toda entrega.
+  Justificación: con un orden fijo, el backtracking todavía resuelve terrenos
+  chicos (N <= 7) en milisegundos, pero se vuelve inviable a partir de N = 8 (un
+  8x8 no termina en tiempo razonable); exigirla siempre garantiza que la solución
+  funcione para cualquier N que se evalúe. El grado se explica en detalle en la
+  sección "EJEMPLO DE REFERENCIA" al final.
+* Antes de la recursión, el algoritmo debe determinar cuántas parcelas son
+  alcanzables desde el despegue (el objetivo a cubrir) recorriendo el grafo de
+  movimientos. Las parcelas no alcanzables quedan fuera del objetivo.
+* Nota: aunque el dron pueda alcanzar un conjunto de parcelas, no siempre existe
+  una ruta única que las visite todas sin repetir (por ejemplo, en un terreno
+  4x4). El algoritmo debe ser capaz de retornar "false" si agota todas las
+  posibilidades de exploración sin lograr cubrir las parcelas alcanzables.
+
+PARTE C: CONFIGURACIÓN E INFRAESTRUCTURA (10%)
+* Crear el archivo "appsettings.json" en la raíz del proyecto, configurando
+  correctamente la sección "ConnectionStrings". Asegurar que las propiedades
+  del archivo estén seteadas en "Copy to Output Directory = Copy if newer".
+* En el inicio de la aplicación (Program.cs), inicializar el ConfigurationBuilder
+  para extraer la cadena de conexión antes de realizar cualquier interacción
+  con PostgreSQL.
+
+PARTE D: PERSISTENCIA DINÁMICA CON OFUSCACIÓN DE DATOS (20%)
+Una vez que la recursión determine que el dron completó el recorrido, se debe
+invocar al método de guardado protegido por una transacción (NpgsqlTransaction):
+1. Insertar la cabecera en "tb_master_control" y recuperar el ID generado
+   automáticamente utilizando la cláusula "RETURNING id" mediante el método
+   ".ExecuteScalar()".
+2. Insertar los movimientos uno a uno en "tb_det_log" mediante un bucle "while"
+   controlado manualmente (respetando la restricción de no usar for/foreach).
+3. REGLA DE OFUSCACIÓN: Por motivos de auditoría de sistemas, el campo destinado
+   a registrar la etiqueta del paso actual NO debe guardarse de forma lineal.
+   Deberás aplicar la siguiente lógica antes de ejecutar el ".ExecuteNonQuery()":
+   * Si el número de movimiento actual de la simulación es PAR, se debe guardar
+     en la base de datos multiplicado por 2 (ej: el paso 4 se guarda como 8).
+   * Si el número de movimiento actual es IMPAR, se debe guardar como un
+     NÚMERO NEGATIVO (ej: el paso 3 se guarda como -3).
+
+PARTE E: INTERFAZ DE CONSOLA Y REPORTE CON INGENIERÍA INVERSA (15%)
+El método Main debe gestionar el siguiente flujo dinámico:
+1. Cargar la configuración del sistema desde el archivo JSON.
+2. Solicitar al usuario la dimensión del espacio N (entero >= 1) y la posición
+   inicial de la unidad móvil, validando que las coordenadas se encuentren dentro
+   del rango válido [0, N-1].
+3. Mostrar en la consola la matriz del recorrido calculada de forma numérica
+   ordinaria (0, 1, 2...). Las parcelas que el dron no haya podido pisar (no
+   alcanzables) se muestran con un punto ".". Si no hay solución, mostrar un
+   mensaje explicativo.
+4. Si fue exitoso, guardar en PostgreSQL e informar el ID generado.
+5. REPORTE INVERSO CON RECONSTRUCCIÓN: Realizar una consulta final utilizando
+   ".ExecuteReader()" (NpgsqlDataReader) para traer los ÚLTIMOS 5 REGISTROS
+   vinculados a esa simulación específica desde "tb_det_log", ordenados de forma
+   descendente por su ID (ORDER BY id DESC LIMIT 5). El programa deberá aplicar
+   ingeniería inversa matemática "en caliente" mientras lee los registros para
+   revertir la transformación de la Parte D y mostrar el número de paso REAL
+   (sin ofuscar) de cada uno de esos 5 registros. Es decir, se muestran los
+   últimos 5 pasos del recorrido ya reconstruidos a su valor original.
+   La regla de reconstrucción (inversa de la Parte D) es: si el valor guardado es
+   NEGATIVO, el paso real era IMPAR y se recupera cambiándole el signo; si el
+   valor guardado es >= 0, el paso real era PAR y se recupera dividiéndolo por 2.
+
+--------------------------------------------------------------------------------
+4. CRITERIOS DE EVALUACIÓN ESTRICTOS
+--------------------------------------------------------------------------------
+* FIDELIDAD DEL MOVIMIENTO: El código debe implementar los vectores del patrón
+  2x1 especificado: 2 parcelas en recto + 1 perpendicular, con sus 8 destinos
+  posibles. Usar otro vector de desplazamiento se considerará desaprobado.
+* VALIDACIÓN DE LA SOLUCIÓN (NOTA PARA LA CORRECCIÓN): El recorrido NO es único,
+  así que la matriz del alumno puede no coincidir con la del ejemplo y aun así ser
+  correcta. La corrección debe validar PROPIEDADES, no la coincidencia exacta:
+  (a) cada parcela alcanzable se pisa exactamente una vez; (b) todo salto entre
+  pasos consecutivos respeta el patrón 2x1; (c) la cantidad de pasos coincide con
+  las parcelas alcanzables; (d) la ofuscación al guardar y la reconstrucción al
+  leer son correctas.
+* DISEÑO E INTEGRIDAD DE DATOS: Correcta interpretación de los nombres abstractos
+  de las tablas/columnas y su correspondiente vinculación por Clave Foránea.
+* CUMPLIMIENTO DE RESTRICCIONES Y OFUSCACIÓN: No utilización de bucles for/foreach
+  en la persistencia. Correcta implementación de la transformación de datos al
+  guardar (Parte D) y al recuperar/reconstruir (Parte E).
+* USO CORRECTO DE ADO.NET SÍNCRONO: Uso estricto de bloques "using" para
+  liberar recursos, parametrización adecuada de consultas (evitar concatenación
+  de strings) y gestión completa de transacciones (Commit/Rollback).
+* DEFENSA OBLIGATORIA: El docente se reserva el derecho de solicitar una
+  explicación sincrónica de líneas de código específicas a los alumnos de
+  manera aleatoria para validar la autoría del examen.
+
+--------------------------------------------------------------------------------
+EJEMPLO DE REFERENCIA: EJECUCIÓN PASO A PASO DEL ALGORITMO (N=8)
+--------------------------------------------------------------------------------
+Para ilustrar CÓMO ejecuta el algoritmo, simulamos un terreno de 8x8 (N=8) con
+despegue en la coordenada (0,0). En cada iteración el dron:
+  1) mira sus hasta 8 destinos posibles;
+  2) descarta los que caen fuera del terreno y los que YA PISÓ (quedan bloqueados);
+  3) entre los que siguen LIBRES prueba primero el de menor "grado" (ver abajo)
+     y avanza de forma recursiva.
+
+¿QUÉ SIGNIFICA EL "GRADO" DE UNA PARCELA CANDIDATA?
+El grado de una parcela candidata es la cantidad de parcelas LIBRES a las que el
+dron podría saltar DESDE esa candidata en el siguiente movimiento (sus "salidas"
+disponibles). Se calcula contando solo las parcelas que en ese momento siguen sin
+pisar y dentro del terreno, por lo que el grado de una misma parcela va bajando a
+medida que sus vecinas se van bloqueando.
+
+  - Grado alto  = la candidata tiene muchas salidas (es "cómoda", flexible).
+  - Grado bajo  = la candidata tiene pocas salidas; una de grado 1 tiene una sola
+                  salida, y de grado 0 sería un callejón sin salida.
+
+ESTRATEGIA (por qué se elige el MENOR grado primero):
+Conviene visitar PRIMERO las parcelas más "encerradas" (las de menor grado), antes
+de que sus pocas salidas se bloqueen y queden aisladas para siempre. Si en cambio
+se dejaran para el final, es muy probable que terminen inalcanzables y el dron
+tenga que retroceder una y otra vez. Elegir el menor grado primero reduce
+muchísimo el backtracking. Es únicamente el ORDEN en que se prueban los candidatos:
+si esa primera opción luego falla, el backtracking igual prueba las demás.
+(Ejemplo concreto: en el PASO 5 la esquina (7,7) tiene grado 1 —una única salida—
+y por eso se elige antes que destinos de grado 5 ó 7).
+
+La etiqueta de cada parcela es su orden de pisada (0 = despegue) y el punto "."
+marca una parcela todavía libre. Así se ve cómo el mapa se va bloqueando paso a
+paso (traza real generada por este proyecto):
+
+PASO 0: el dron está en (0,0). Al ser una esquina, de sus 8 destinos teóricos
+  solo 2 caen dentro del terreno (de ahí el "hasta 8"):
+     -> ( 2, 1) LIBRE (grado 5)              <== ELEGIDO (menor grado)
+     -> ( 2,-1) FUERA DEL TERRENO (descartado: columna -1)
+     -> (-2, 1) FUERA DEL TERRENO (descartado: fila -2)
+     -> (-2,-1) FUERA DEL TERRENO (descartado: fila y columna negativas)
+     -> ( 1, 2) LIBRE (grado 5)
+     -> ( 1,-2) FUERA DEL TERRENO (descartado: columna -2)
+     -> (-1, 2) FUERA DEL TERRENO (descartado: fila -1)
+     -> (-1,-2) FUERA DEL TERRENO (descartado: fila y columna negativas)
+  Salta a (2,1) = 2 abajo + 1 derecha.
+  Terreno tras registrar el paso 0 ('.' = libre):
+        0   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+
+PASO 1: el dron está en (2,1).
+  Candidatos libres desde (2,1) [se descartan las ya pisadas]:
+     -> (4,2) LIBRE (grado 7)
+     -> (4,0) LIBRE (grado 3)   <== ELEGIDO (menor grado)
+     -> (0,2) LIBRE (grado 3)
+     -> (0,0) BLOQUEADA (ya pisada)
+     -> (3,3) LIBRE (grado 7)
+     -> (1,3) LIBRE (grado 5)
+  Salta a (4,0) = 2 abajo + 1 izquierda.
+  Terreno tras registrar el paso 1 ('.' = libre):
+        0   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   1   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+
+PASO 2: el dron está en (4,0).
+  Candidatos libres desde (4,0) [se descartan las ya pisadas]:
+     -> (6,1) LIBRE (grado 3)   <== ELEGIDO (menor grado)
+     -> (2,1) BLOQUEADA (ya pisada)
+     -> (5,2) LIBRE (grado 7)
+     -> (3,2) LIBRE (grado 7)
+  Salta a (6,1) = 2 abajo + 1 derecha.
+  Terreno tras registrar el paso 2 ('.' = libre):
+        0   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   1   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        2   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+
+PASO 3: el dron está en (6,1).
+  Candidatos libres desde (6,1) [se descartan las ya pisadas]:
+     -> (4,2) LIBRE (grado 6)
+     -> (4,0) BLOQUEADA (ya pisada)
+     -> (7,3) LIBRE (grado 3)   <== ELEGIDO (menor grado)
+     -> (5,3) LIBRE (grado 7)
+  Salta a (7,3) = 1 abajo + 2 derecha.
+  Terreno tras registrar el paso 3 ('.' = libre):
+        0   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   1   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        2   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   3   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+
+PASO 4: el dron está en (7,3).
+  Candidatos libres desde (7,3) [se descartan las ya pisadas]:
+     -> (5,4) LIBRE (grado 7)
+     -> (5,2) LIBRE (grado 6)
+     -> (6,5) LIBRE (grado 5)   <== ELEGIDO (menor grado)
+     -> (6,1) BLOQUEADA (ya pisada)
+  Salta a (6,5) = 1 arriba + 2 derecha.
+  Terreno tras registrar el paso 4 ('.' = libre):
+        0   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   1   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        2   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   3   .   .   .   .   .   .
+        .   .   .   4   .   .   .   .
+
+PASO 5: el dron está en (6,5).
+  Candidatos libres desde (6,5) [se descartan las ya pisadas]:
+     -> (4,6) LIBRE (grado 5)
+     -> (4,4) LIBRE (grado 7)
+     -> (7,7) LIBRE (grado 1)   <== ELEGIDO (menor grado)
+     -> (7,3) BLOQUEADA (ya pisada)
+     -> (5,7) LIBRE (grado 3)
+     -> (5,3) LIBRE (grado 6)
+  Salta a (7,7) = 1 abajo + 2 derecha.
+  Terreno tras registrar el paso 5 ('.' = libre):
+        0   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   1   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        2   .   .   .   .   .   .   .
+        .   .   .   .   .   .   .   .
+        .   3   .   .   .   5   .   .
+        .   .   .   4   .   .   .   .
+
+... (el algoritmo sigue saltando y bloqueando parcelas) ...
+
+Terreno al llegar al paso 15:
+        0   .  14   .   .   .  12   .
+       15   .   .   .  13   .   .   .
+        .   1   .   .   .   .   .  11
+        .   .   .   .   .   .   .   .
+        2   .   .   .   .   .  10   .
+        .   .   .   .   .   .   7   .
+        .   3   .   .   .   5   .   9
+        .   .   .   4   .   8   .   6
+
+Terreno al llegar al paso 31:
+        0   .  14  31   .  27  12  29
+       15   .   .   .  13  30   .  26
+        .   1   .   .   .   .  28  11
+        .  16   .   .   .   .  25   .
+        2   .   .   .   .   .  10   .
+       17   .  19   .   .   .   7  24
+       20   3   .   .  22   5   .   9
+        .  18  21   4   .   8  23   6
+
+Terreno al llegar al paso 47:
+        0   .  14  31   .  27  12  29
+       15  32   .   .  13  30   .  26
+        .   1   .  43   .   .  28  11
+       33  16   .   .   .  46  25   .
+        2   .  44  47  42   .  10  39
+       17  34  19   .  45  40   7  24
+       20   3  36  41  22   5  38   9
+       35  18  21   4  37   8  23   6
+
+Terreno FINAL al llegar al paso 63 (terreno 8x8 cubierto por completo):
+        0  49  14  31  60  27  12  29
+       15  32  63  54  13  30  59  26
+       50   1  48  43  56  61  28  11
+       33  16  55  62  53  46  25  58
+        2  51  44  47  42  57  10  39
+       17  34  19  52  45  40   7  24
+       20   3  36  41  22   5  38   9
+       35  18  21   4  37   8  23   6
+
+*(Nota sobre el BACKTRACKING: si en alguna iteración el dron se quedara SIN
+candidatos libres antes de completar el recorrido, el algoritmo deshace el último
+paso —vuelve a marcar esa parcela como libre "."— y prueba la siguiente
+alternativa de la parcela anterior. En esta simulación, elegir siempre el destino
+de menor grado evitó los callejones, por lo que llegó al paso 63 sin retroceder.
+El recorrido no es único: otra elección de candidatos daría otra matriz igualmente
+válida. El programa dibuja esta matriz numérica en pantalla antes de procesar el
+guardado con ofuscación en PostgreSQL).*
+
+--------------------------------------------------------------------------------
+MATRICES DE EJEMPLO PARA DISTINTOS TAMAÑOS DE N
+--------------------------------------------------------------------------------
+Resultados reales generados por este proyecto (0 = parcela de despegue; los
+números indican el orden de pisada).
+
+N = 6, despegue (0,0) -> terreno completo (36 parcelas, pasos 0..35):
+    0    9   30   19    6   11
+   31   18    7   10   29   20
+    8    1   24   35   12    5
+   17   32   15   26   21   28
+    2   25   34   23    4   13
+   33   16    3   14   27   22
+
+N = 7, despegue (5,3) -> terreno completo (49 parcelas, pasos 0..48):
+   20    9   30   39   18    7    4
+   29   40   19    8    5   36   17
+   10   21   38   31   44    3    6
+   41   28   43   48   37   16   35
+   22   11   24   27   32   45    2
+   25   42   13    0   47   34   15
+   12   23   26   33   14    1   46
+
+--------------------------------------------------------------------------------
+CASOS ESPERADOS (VERIFICACIÓN RÁPIDA)
+--------------------------------------------------------------------------------
+Entradas (N, X, Y) y el resultado que debe producir el programa:
+
+  N = 1, (0,0)  -> ÉXITO: cubre 1 de 1 parcela (solo el paso 0).
+  N = 2, (0,0)  -> ÉXITO: cubre 1 de 4 (no entra ningún salto; el resto queda ".").
+  N = 3, (0,0)  -> ÉXITO: cubre 8 de 9 (la parcela central es inalcanzable):
+        0   5   2
+        3   .   7
+        6   1   4
+  N = 4, (0,0)  -> SIN SOLUCIÓN: alcanza las 16 parcelas, pero no existe ruta que
+                   las cubra sin repetir; el programa debe informarlo (no es error).
+  N = 6, (0,0) y N = 7, (5,3) -> ÉXITO: terreno completo (ver matrices arriba).
+
+Recordatorio: por empates de "grado", la matriz concreta puede variar entre
+soluciones correctas; se validan las PROPIEDADES (ver criterios de evaluación),
+no la coincidencia exacta con estas matrices.
+
+--------------------------------------------------------------------------------
+5. SISTEMA DE CALIFICACIÓN Y APROBACIÓN
+--------------------------------------------------------------------------------
+
+DISTRIBUCIÓN DEL PUNTAJE (sobre 100 puntos):
+
+  Parte A - Diseño e interpretación de la base de datos ......... 15
+  Parte B - Algoritmo de vuelo recursivo ....................... 40
+  Parte C - Configuración e infraestructura .................... 10
+  Parte D - Persistencia dinámica con ofuscación ............... 20
+  Parte E - Interfaz de consola y reporte con ing. inversa ..... 15
+                                                          TOTAL = 100
+
+Cada parte se corrige con PUNTAJE PARCIAL según las propiedades cumplidas (no es
+"todo o nada"). Detalle orientativo de lo que se valora en cada una:
+
+  A (20): tablas con PK autonumérica, tipos correctos, FK bien vinculada (1 a N),
+          nombres de columnas coherentes con su función.
+  B (25): movimiento 2x1 fiel (8 destinos), recursión + backtracking correcto,
+          orden por menor grado, pre-cuenta de alcanzables, retorno "false" al no
+          haber ruta, adaptación dinámica a N (sin constantes).
+  C (15): appsettings.json con ConnectionStrings, "Copy if newer",
+          ConfigurationBuilder leyendo la cadena antes de tocar la base.
+  D (25): transacción (Commit/Rollback), RETURNING id con ExecuteScalar, inserción
+          con while/índice manual, ofuscación correcta (par x2 / impar negativo).
+  E (15): validación de N y coordenadas, dibujo de la matriz, ExecuteReader de los
+          últimos 5 (ORDER BY id DESC) y reconstrucción inversa correcta.
+
+CONDICIÓN DE APROBACIÓN:
+  Se aprueba con 60 puntos o más (60/100), siempre que NO se incurra en ninguna
+  condición eliminatoria. Además, la aprobación queda SUJETA a una defensa
+  INDIVIDUAL y OBLIGATORIA del código realizado, que se llevará a cabo el día
+  LUNES. En esa instancia el alumno deberá explicar su propio código; si no logra
+  justificar la autoría o no se presenta a la defensa, el examen se considera
+  desaprobado sin importar el puntaje obtenido.
+
+CONDICIONES ELIMINATORIAS (desaprueban el examen sin importar el puntaje logrado):
+  - Implementar un vector de movimiento distinto del patrón 2x1 especificado.
+  - Usar un ORM (EF Core, Dapper, etc.) o modificadores async/await en el acceso
+    a datos (se exige ADO.NET síncrono).
+  - No poder explicar el propio código en la defensa (autoría no validada).
+  - Entregar un proyecto que no compila.
+
+PENALIZACIONES (restan dentro de la parte correspondiente, no eliminan):
+  - Cadena de conexión hardcodeada en vez de leerla del JSON (resta en C).
+  - Uso de "for"/"foreach" para recorrer e insertar la secuencia (resta en D).
+  - Concatenar strings en las consultas en lugar de parametrizar (resta en D/E).
+  - No liberar recursos con bloques "using" o no gestionar Commit/Rollback (resta en D).
+
+NOTA DE CORRECCIÓN: como el recorrido no es único, la corrección de la Parte B/E
+se hace por PROPIEDADES (recorrido válido, cobertura de alcanzables, ofuscación y
+reconstrucción correctas), nunca por coincidencia exacta con las matrices de
+ejemplo de este enunciado.
+
+--------------------------------------------------------------------------------
+ENTREGA DEL PARCIAL
+--------------------------------------------------------------------------------
+* TODOS los alumnos deberán ENVIAR el parcial para tener derecho a recuperación.
+* Fecha y hora límite de envío: HOY, 24 de junio, hasta las 22:00 hs.
+* El alumno que no llegue a terminar debe enviarlo igualmente en el estado en que
+  se encuentre (entrega parcial).
+* El código debe subirse a un repositorio de GitHub y notificarse vía email.
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================

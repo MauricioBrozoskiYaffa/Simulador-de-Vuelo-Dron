@@ -1,0 +1,28 @@
+C:\Users\brozo\Desktop\Dron Parcial\obj\Debug\net10.0\Dron Parcial.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\brozo\Desktop\Dron Parcial\obj\Debug\net10.0\Dron Parcial.AssemblyInfoInputs.cache
+C:\Users\brozo\Desktop\Dron Parcial\obj\Debug\net10.0\Dron Parcial.AssemblyInfo.cs
+C:\Users\brozo\Desktop\Dron Parcial\obj\Debug\net10.0\Dron Parcial.csproj.CoreCompileInputs.cache
+C:\Users\brozo\Desktop\Dron Parcial\obj\Debug\net10.0\Dron Parcial.csproj.AssemblyReference.cache
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\appsettings.json
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\Dron Parcial.exe
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\Dron Parcial.deps.json
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\Dron Parcial.runtimeconfig.json
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\Dron Parcial.dll
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\Dron Parcial.pdb
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\Microsoft.Extensions.Configuration.dll
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\Microsoft.Extensions.Configuration.Abstractions.dll
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\Microsoft.Extensions.Configuration.FileExtensions.dll
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\Microsoft.Extensions.Configuration.Json.dll
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\Microsoft.Extensions.DependencyInjection.Abstractions.dll
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\Microsoft.Extensions.FileProviders.Abstractions.dll
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\Microsoft.Extensions.FileProviders.Physical.dll
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\Microsoft.Extensions.FileSystemGlobbing.dll
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\Microsoft.Extensions.Logging.Abstractions.dll
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\Microsoft.Extensions.Primitives.dll
+C:\Users\brozo\Desktop\Dron Parcial\bin\Debug\net10.0\Npgsql.dll
+C:\Users\brozo\Desktop\Dron Parcial\obj\Debug\net10.0\Dron Par.F8267291.Up2Date
+C:\Users\brozo\Desktop\Dron Parcial\obj\Debug\net10.0\Dron Parcial.dll
+C:\Users\brozo\Desktop\Dron Parcial\obj\Debug\net10.0\refint\Dron Parcial.dll
+C:\Users\brozo\Desktop\Dron Parcial\obj\Debug\net10.0\Dron Parcial.pdb
+C:\Users\brozo\Desktop\Dron Parcial\obj\Debug\net10.0\Dron Parcial.genruntimeconfig.cache
+C:\Users\brozo\Desktop\Dron Parcial\obj\Debug\net10.0\ref\Dron Parcial.dll
